@@ -10,21 +10,32 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import datetime
+from instruments import function_generator_simulator
 
 rm = visa.ResourceManager()
 
 
 def main():
     plt.style.use('seaborn-whitegrid')
-
-    lock_in,function_generator = get_instruments()
     
+    
+    live=False
+    
+    if not live:
+        function_generator = function_generator_simulator(0)
+        lock_in = function_generator
+    else:
+        lock_in,function_generator = get_instruments()
+            
+        
+        
+        
     
     
     starting_frequency=50                                                                     
     upperbound_frequency=2000
     step_size = 1
-    experiment=Experiment(starting_frequency,upperbound_frequency,step_size,lock_in,function_generator)
+    experiment=Experiment(starting_frequency,upperbound_frequency,step_size,lock_in,function_generator,live)
 
     
     experiment.run()
@@ -43,7 +54,7 @@ def get_instruments():
     return lock_in,function_generator
 
 class Experiment:
-    def __init__(self,starting_frequency,upperbound_frequency,step_size,lock_in,function_generator):
+    def __init__(self,starting_frequency,upperbound_frequency,step_size,lock_in,function_generator,live):
         
         self.lock_in= lock_in
         self.function_generator= function_generator
@@ -53,7 +64,7 @@ class Experiment:
         self.upperbound_frequency=upperbound_frequency
         self.stepsize = step_size
         self.smaller_stepsize = step_size // 10
-        self.waiting_time = 0.5                        
+        self.waiting_time = 0.0001                        
         self.current_phase = []                                                    #Holds the current_phase_value
         self.current_datapoint= []                                              
         self.phase_data= []
@@ -103,7 +114,7 @@ class Experiment:
         self.frequency_data.append(self.current_frequency)
         self.phase_data.append(self.current_phase)
         self.phase_vs_frequency.append([self.current_frequency,self.current_phase])
-        print(self.current_frequency,self.current_phase)
+        #print(self.current_frequency,self.current_phase)
         file=open("data.txt", "a+")
         file.write(str(self.current_frequency) + ',' + str(self.current_phase) + ',                   ' + str(datetime.datetime.now()) + '\n' )
 
@@ -113,11 +124,11 @@ class Experiment:
     def polynomial_regression(self,phase_array,frequency_array):
         #print('interpolating...')
         #time.sleep(0.3)
-        print('frenquencies',frequency_array)
-        print('phases', phase_array)
+        #print('frenquencies',frequency_array)
+        #print('phases', phase_array)
         interpolation_curve=np.poly1d(np.polyfit(phase_array,frequency_array,2))
         interpolation_value=interpolation_curve(90)
-        print("Interpolation Value :", interpolation_value)
+        #print("Interpolation Value :", interpolation_value)
         return round(interpolation_value,6)
 
     def update_plot(self,i):
@@ -172,7 +183,7 @@ class Experiment:
             plt.plot(self.frequency_data,self.phase_data,label='Regular data points',c='blue',marker='o', alpha=0.5)
             plt.scatter([x[1] for x in self.resonances],[x[0] for x in self.resonances],label='Resonance Found', c='red',s=150, alpha=0.9)
             plt.scatter(self.interpolated_frequencies, self.interpolated_resonances,label='Polyregression Measurement ', c='green', s=150, alpha = 0.8)
-            print(self.interpolated_frequencies)
+            #print(self.interpolated_frequencies)
             plt.xlabel('Frequencies (Hertz)', fontsize=25)
             plt.title('Signal Phase off-set over Frequency Range', fontsize=30)
             plt.ylabel('Phase off-set (degrees)', fontsize = 25)
@@ -195,7 +206,7 @@ class Experiment:
             r=self.is_resonance[len(self.is_resonance) -1]
             r1=self.is_resonance[len(self.is_resonance) -2]
         
-            if len(self.phase_data) >= 3:
+            if len(self.phase_data) >= 3:   #determine how many points you are gonna use for the regression
                 p=[self.phase_data[len(self.phase_data)-1],self.phase_data[len(self.phase_data) -2],self.phase_data[len(self.phase_data) -3]]
                 f=[self.frequency_data[len(self.frequency_data)-1],self.frequency_data[len(self.frequency_data) -2],self.frequency_data[len(self.frequency_data)-3]]
                 
@@ -247,7 +258,7 @@ class Experiment:
                        self.update_frequency(self.stepsize)
                        self.update_phase()
                        self.write_data()
-                       print(self.current_frequency, 'asasasa')
+                       print('current frequency:',self.current_frequency)
                            
                        
                     
