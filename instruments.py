@@ -19,7 +19,7 @@ class function_generator_simulator:
        
     def query(self,dummy_string):              #the string is just for compatibility
         
-        phase = (100)*math.sin(0.005*self.current_frequency) + ((4E-6)*(self.current_frequency)**2) + rnd.uniform(0,30)
+        phase = (100)*math.sin(0.005*self.current_frequency) + ((4E-6)*(self.current_frequency)**2) + rnd.uniform(0,10)
         
         return phase
   
