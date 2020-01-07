@@ -17,11 +17,11 @@ rm = visa.ResourceManager()
 
 def main():
     plt.style.use('seaborn-whitegrid')
+    print('ResonanceFrenquencyFinder')
+    print('Please every input is case sensitive')
+    simulated=bool(input('Is the instrument simulated? if so type True otherwise a simulated signal will be generated '))
     
-    
-    live=False
-    
-    if not live:
+    if simulated:
         function_generator = function_generator_simulator(0)
         lock_in = function_generator
     else:
@@ -30,12 +30,19 @@ def main():
         
         
         
+    default=bool(input("Type True to use default values "))
     
-    
-    starting_frequency=50                                                                     
-    upperbound_frequency=2000
-    step_size = 1
-    experiment=Experiment(starting_frequency,upperbound_frequency,step_size,lock_in,function_generator,live)
+    if default:
+        starting_frequency = 50
+        upperbound_frequency = 2000
+        step_size = 1
+    else:
+        starting_frequency=int(input('Enter the starting frequency make sure to check your instruments range '))
+        upperbound_frequency=int(input('Enter the upperbound frequency make sure to check your instruments range '))
+        step_size=int(input("Enter the stepsize you'll use "))
+      
+
+    experiment=Experiment(starting_frequency,upperbound_frequency,step_size,lock_in,function_generator,simulated)
 
     
     experiment.run()
@@ -126,7 +133,8 @@ class Experiment:
         #time.sleep(0.3)
         #print('frenquencies',frequency_array)
         #print('phases', phase_array)
-        interpolation_curve=np.poly1d(np.polyfit(phase_array,frequency_array,2))
+        
+        interpolation_curve=np.poly1d(np.polyfit(phase_array,frequency_array,1))
         interpolation_value=interpolation_curve(90)
         #print("Interpolation Value :", interpolation_value)
         return round(interpolation_value,6)
@@ -160,7 +168,7 @@ class Experiment:
         
     
     def check_if_resonance(self):
-        if self.current_phase < 92 and self.current_phase > 88:
+        if self.current_phase < 90.5 and self.current_phase > 89.5:
             self.is_resonance.append(True)
             self.resonances.append([self.current_phase,self.current_frequency])
             print('RESONANCE')
@@ -181,8 +189,8 @@ class Experiment:
             
             plt.tick_params(axis='both',labelsize=15)
             plt.plot(self.frequency_data,self.phase_data,label='Regular data points',c='blue',marker='o', alpha=0.5)
-            plt.scatter([x[1] for x in self.resonances],[x[0] for x in self.resonances],label='Resonance Found', c='red',s=150, alpha=0.9)
-            plt.scatter(self.interpolated_frequencies, self.interpolated_resonances,label='Polyregression Measurement ', c='green', s=150, alpha = 0.8)
+            plt.scatter([x[1] for x in self.resonances],[x[0] for x in self.resonances],label='Resonance Found', c='red',s=150, alpha=0.8)
+            #plt.scatter(self.interpolated_frequencies, self.interpolated_resonances,label='Polyregression Measurement ', c='green', s=150, alpha = 0.5)
             #print(self.interpolated_frequencies)
             plt.xlabel('Frequencies (Hertz)', fontsize=25)
             plt.title('Signal Phase off-set over Frequency Range', fontsize=30)
@@ -206,56 +214,54 @@ class Experiment:
             r=self.is_resonance[len(self.is_resonance) -1]
             r1=self.is_resonance[len(self.is_resonance) -2]
         
-            if len(self.phase_data) >= 3:   #determine how many points you are gonna use for the regression
-                p=[self.phase_data[len(self.phase_data)-1],self.phase_data[len(self.phase_data) -2],self.phase_data[len(self.phase_data) -3]]
-                f=[self.frequency_data[len(self.frequency_data)-1],self.frequency_data[len(self.frequency_data) -2],self.frequency_data[len(self.frequency_data)-3]]
+            if len(self.phase_data) >= 5:   #determine how many points you are gonna use for the regression
+                p=[self.phase_data[len(self.phase_data)-1],self.phase_data[len(self.phase_data) -2],self.phase_data[len(self.phase_data) -3],self.phase_data[len(self.phase_data) -4],self.phase_data[len(self.phase_data) -5]]
+                f=[self.frequency_data[len(self.frequency_data)-1],self.frequency_data[len(self.frequency_data) -2],self.frequency_data[len(self.frequency_data)-3],self.frequency_data[len(self.frequency_data)-4],self.frequency_data[len(self.frequency_data)-5]]
                 
             
-                if self.check_range(p)==True and r == False and r1 == False:                                                #check if a 90 degree off-set is in the range of the previous 3 data points
+                if self.check_range(p)==True and r == False and r1 == False:                                                                   #check if a 90 degree off-set is in the range of the previous 3 data points
                        counter=0
                                                                       
                        while counter <=  10 and r != True:
                            
                             counter = counter + 1
-                            print('Counter: ', counter)
+                            
                             if self.check_range(p) == True and p[0] != p[1] and p[1] != p[2] and p[2] != p[0] :         
                                 fnew = self.polynomial_regression(p,f)
                                 
-                                if fnew <= max(f) + self.stepsize and fnew >= min(f) - self.stepsize:                        #check if interpolated frequency is in within range
+                                if fnew <= max(f) + self.stepsize and fnew >= min(f) - self.stepsize:                                              #check if interpolated frequency is in within range
                                     self.current_frequency = fnew
-                                    self.update_phase()                                                                           #read the interpolated phase and making it the new current_phase
-                                    print('interpolation phase: ',self.current_phase)
-                                if self.check_if_resonance() == True:                                                          #CASE 1: Resonance is found,  
+                                    self.update_phase()                                                                                            #read the interpolated phase and making it the new current_phase
+                                    print('Using regression..... phase: ',self.current_phase)
+                                if self.check_if_resonance() == True:                                                                           #CASE 1: Resonance is found,  
                                     self.is_resonance.append(True)
                                     r = True
-                                    print('!!!!RESONANCE!!!!')
-                                    self.write_data()                                                                          #write data doesn't make any reads
-                                elif self.compare_phases(self.current_phase,p[0]) and fnew <= max(f) + self.stepsize and fnew >= min(f) - self.stepsize:                                             #CASE 2: Resonance is not found with interpolation
-                                    self.write_data()                                                                             #Compare the current_phase (the interpolated phase), with the previously measure phase and if it's better write the data 
+                                    print('!!!!RESONANCE FOUND!!!!!')
+                                    self.write_data()                                                                                                
+                                elif self.compare_phases(self.current_phase,p[0]) and fnew <= max(f) + self.stepsize and fnew >= min(f) - self.stepsize:             #CASE 2: Resonance is not found with interpolation
+                                    self.write_data()                                                                                   #Compare the current_phase (the interpolated phase), with the previously measure phase and if it's better write the data 
                                     p[0]=self.current_phase                                                                    
                                     f[0]=self.current_frequency
                                     self.interpolated_frequencies.append(fnew)
                                     self.interpolated_resonances.append(self.current_phase)
-                                    print('BETTER THAN PREVIOUS')
+                                    print('Regression phase is better than previous measured','phase: ', round(self.current_phase,2))
                                 else:
-                                    min_frequency = min(f)                                                                     #CASE 3: is not resonance and is not better than previous
-                                    print('Discarting interpolated phase')                                                        #Discart the interpolated phase and get the minimum frequency of the 3 previous measurments and increase by a smaller stepsize 
-                                    print('min frequency', min_frequency)
-                                    self.interpolated_frequencies.append(fnew)
+                                    min_frequency = min(f)                                                                     #CASE 3: is not resonance and is not better than previous                                                      
+                                    self.interpolated_frequencies.append(fnew)                                                 #Discard the interpolated phase and get the minimum frequency of the 3 previous measurments and increase by a smaller stepsize 
                                     self.interpolated_resonances.append(self.current_phase)
                                     for i in range(len(f)):
                                         if min_frequency == f[i]:                                                                 #find the minimum frequency of the 3 previous measuements and increase it by a fraction of the original stepsize                                            
                                             self.update_frequency(self.smaller_stepsize)
                                             time.sleep(0.05)
                                             self.update_phase()
-                                            print('updates: ',' nmin phase' ,self.current_phase,' nmin frequency', self.current_frequency)
+                                            print('updates: ',' nmin phase' ,self.current_phase,' nmin frequency', round(self.current_phase,2))
                                             f[i]=self.current_frequency
                                             p[i]=self.current_phase             
                             else:
                                 counter = 11                                                                             #The phases are not in the proper range anymore so we exit the loop
                                 self.write_data()
-                       self.current_frequency=max(f)
-                       self.update_frequency(self.stepsize)
+                       self.current_frequency=max(f)       #select the max frequency as the starting point for the next regression
+                       self.update_frequency(self.stepsize) 
                        self.update_phase()
                        self.write_data()
                        print('current frequency:',self.current_frequency)
