@@ -245,6 +245,7 @@ class Experiment:
                                     self.interpolated_frequencies.append(fnew)
                                     self.interpolated_resonances.append(self.current_phase)
                                     print('Regression phase is better than previous measured','phase: ', round(self.current_phase,2))
+                                    
                                 else:
                                     min_frequency = min(f)                                                                     #CASE 3: is not resonance and is not better than previous                                                      
                                     self.interpolated_frequencies.append(fnew)                                                 #Discard the interpolated phase and get the minimum frequency of the 3 previous measurments and increase by a smaller stepsize 
